@@ -68,7 +68,7 @@ fn try_xdp_ip_counter<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
 }
 
 #[inline(always)]
-unsafe fn ptr_at<'b, T>(ctx: &XdpContext, offset: usize) -> Result<*const T, &'b str> {
+unsafe fn ptr_at<'a, T>(ctx: &XdpContext, offset: usize) -> Result<*const T, &'a str> {
     let start = ctx.data();
     let end = ctx.data_end();
     let len = mem::size_of::<T>();
@@ -80,7 +80,7 @@ unsafe fn ptr_at<'b, T>(ctx: &XdpContext, offset: usize) -> Result<*const T, &'b
     Ok((start + offset) as *const T)
 }
 
-fn add_tcp<'a, 'b>(ip: &'a u32, port: &'a u16) -> Result<(), &'b str> {
+fn add_tcp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
     if unsafe { TCP_IP_PORT_MAP.get(ip).is_none() } {
         match unsafe { TCP_IP_PORT_MAP.insert(ip, port, 0) } {
             Ok(_) => {}
@@ -90,7 +90,7 @@ fn add_tcp<'a, 'b>(ip: &'a u32, port: &'a u16) -> Result<(), &'b str> {
     Ok(())
 }
 
-fn add_udp<'a, 'b>(ip: &'a u32, port: &'a u16) -> Result<(), &'b str> {
+fn add_udp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
     unsafe {
         if UDP_IP_PORT_MAP.get(ip).is_none() {
             match UDP_IP_PORT_MAP.insert(ip, port, 0) {
