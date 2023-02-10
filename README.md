@@ -65,3 +65,8 @@ cargo xtask build-ebpf --release
 rustup target add x86_64-unknown-linux-musl
 cargo build --release --target=x86_64-unknown-linux-musl
 ```
+
+## To Do
+- [ ] IPv6 Support
+- [ ] Use Prometheus Client Library instead of a custom one
+- [ ] Add Support for more [IP Protocols](https://en.wikipedia.org/wiki/List_of_IP_protocol_numbers) 
