@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Write,
-    net::Ipv4Addr,
+    hash::Hash,
     sync::{Arc, Mutex},
 };
 
@@ -22,12 +22,12 @@ pub fn generate_mertics(
     match custom_ports {
         Some(ports) => {
             let ports = ports.clone();
-            metrics_custom_ports(&mut metrics_buffer, &local_maps.tcp, "tcp", &ports)?;
-            metrics_custom_ports(&mut metrics_buffer, &local_maps.udp, "udp", &ports)?;
+            metrics_custom_ports(&mut metrics_buffer, &local_maps.tcp_v4, "tcp", &ports)?;
+            metrics_custom_ports(&mut metrics_buffer, &local_maps.udp_v4, "udp", &ports)?;
         }
         None => {
-            metrics_all_ports(&mut metrics_buffer, &local_maps.tcp, "tcp")?;
-            metrics_all_ports(&mut metrics_buffer, &local_maps.udp, "udp")?;
+            metrics_all_ports(&mut metrics_buffer, &local_maps.tcp_v4, "tcp")?;
+            metrics_all_ports(&mut metrics_buffer, &local_maps.udp_v4, "udp")?;
         }
     }
 
@@ -35,11 +35,14 @@ pub fn generate_mertics(
     Ok(metrics_buffer)
 }
 
-fn metrics_all_ports(
+fn metrics_all_ports<T>(
     buf: &mut String,
-    data: &HashMap<u16, HashSet<Ipv4Addr>>,
+    data: &HashMap<u16, HashSet<T>>,
     proto: &str,
-) -> Result<(), std::fmt::Error> {
+) -> Result<(), std::fmt::Error>
+where
+    T: Eq + Hash,
+{
     for (port, ips) in data.iter() {
         let count = ips.len();
         buf.write_str(
@@ -53,12 +56,15 @@ fn metrics_all_ports(
 
     Ok(())
 }
-fn metrics_custom_ports(
+fn metrics_custom_ports<T>(
     buf: &mut String,
-    data: &HashMap<u16, HashSet<Ipv4Addr>>,
+    data: &HashMap<u16, HashSet<T>>,
     proto: &str,
     ports: &Vec<u16>,
-) -> Result<(), std::fmt::Error> {
+) -> Result<(), std::fmt::Error>
+where
+    T: Eq + Hash,
+{
     for (port, ips) in data.iter() {
         let count = ips.len();
         if ports.contains(&port) {

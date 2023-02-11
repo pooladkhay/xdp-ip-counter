@@ -1,33 +1,22 @@
 #![no_std]
 #![no_main]
 
-use aya_bpf::{
-    bindings::xdp_action,
-    macros::{map, xdp},
-    maps::HashMap,
-    programs::XdpContext,
-};
+use aya_bpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
 use aya_log_ebpf::info;
 use core::mem;
 use network_types::{
     eth::{EthHdr, EtherType},
-    ip::{IpProto, Ipv4Hdr},
+    ip::{IpProto, Ipv4Hdr, Ipv6Hdr},
     tcp::TcpHdr,
     udp::UdpHdr,
 };
+
+mod map;
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     unsafe { core::hint::unreachable_unchecked() }
 }
-
-const MAP_SIZE: u32 = 10240;
-
-#[map(name = "TCP_IP_PORT_MAP")]
-static mut TCP_IP_PORT_MAP: HashMap<u32, u16> = HashMap::<u32, u16>::with_max_entries(MAP_SIZE, 0);
-
-#[map(name = "UDP_IP_PORT_MAP")]
-static mut UDP_IP_PORT_MAP: HashMap<u32, u16> = HashMap::<u32, u16>::with_max_entries(MAP_SIZE, 0);
 
 #[xdp(name = "xdp_ip_counter")]
 pub fn xdp_ip_counter(ctx: XdpContext) -> u32 {
@@ -43,26 +32,52 @@ pub fn xdp_ip_counter(ctx: XdpContext) -> u32 {
 fn try_xdp_ip_counter<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
     let ethhdr: *const EthHdr = unsafe { ptr_at(&ctx, 0)? };
     match unsafe { (*ethhdr).ether_type } {
-        EtherType::Ipv4 => {}
+        EtherType::Ipv4 => count_v4(&ctx)?,
+        EtherType::Ipv6 => count_v6(&ctx)?,
         _ => return Ok(()),
     }
 
-    let ipv4hdr: *const Ipv4Hdr = unsafe { ptr_at(&ctx, EthHdr::LEN)? };
-    let source_addr = u32::from_be(unsafe { (*ipv4hdr).src_addr });
+    Ok(())
+}
 
-    match unsafe { (*ipv4hdr).proto } {
+fn count_v4<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
+    let ipv4_hdr: *const Ipv4Hdr = unsafe { ptr_at(&ctx, EthHdr::LEN)? };
+    let source_addr = unsafe { (*ipv4_hdr).src_addr };
+
+    match unsafe { (*ipv4_hdr).proto } {
         IpProto::Tcp => {
             let tcphdr: *const TcpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv4Hdr::LEN) }?;
-            let port = u16::from_be(unsafe { (*tcphdr).dest });
-            add_tcp(&source_addr, &port)?;
+            let port = unsafe { (*tcphdr).dest };
+            map::add_v4(IpProto::Tcp, &source_addr, &port)?;
         }
         IpProto::Udp => {
             let udphdr: *const UdpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv4Hdr::LEN) }?;
-            let port = u16::from_be(unsafe { (*udphdr).dest });
-            add_udp(&source_addr, &port)?;
+            let port = unsafe { (*udphdr).dest };
+            map::add_v4(IpProto::Udp, &source_addr, &port)?;
         }
         _ => return Err("only TCP and UDP are supported"),
     };
+
+    Ok(())
+}
+
+fn count_v6<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
+    let ipv6_hdr: *const Ipv6Hdr = unsafe { ptr_at(&ctx, EthHdr::LEN)? };
+    let src_addr = unsafe { (*ipv6_hdr).src_addr.in6_u.u6_addr16 };
+
+    match unsafe { (*ipv6_hdr).next_hdr } {
+        IpProto::Tcp => {
+            let tcphdr: *const TcpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv6Hdr::LEN) }?;
+            let port = unsafe { (*tcphdr).dest };
+            map::add_v6(IpProto::Tcp, &src_addr, &port)?;
+        }
+        IpProto::Udp => {
+            let udphdr: *const UdpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv6Hdr::LEN) }?;
+            let port = unsafe { (*udphdr).dest };
+            map::add_v6(IpProto::Udp, &src_addr, &port)?;
+        }
+        _ => return Err("only TCP and UDP are supported"),
+    }
 
     Ok(())
 }
@@ -78,26 +93,4 @@ unsafe fn ptr_at<'a, T>(ctx: &XdpContext, offset: usize) -> Result<*const T, &'a
     }
 
     Ok((start + offset) as *const T)
-}
-
-fn add_tcp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
-    if unsafe { TCP_IP_PORT_MAP.get(ip).is_none() } {
-        match unsafe { TCP_IP_PORT_MAP.insert(ip, port, 0) } {
-            Ok(_) => {}
-            Err(_) => return Err("failed to insert into TCP map"),
-        }
-    }
-    Ok(())
-}
-
-fn add_udp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
-    unsafe {
-        if UDP_IP_PORT_MAP.get(ip).is_none() {
-            match UDP_IP_PORT_MAP.insert(ip, port, 0) {
-                Ok(_) => {}
-                Err(_) => return Err("failed to insert into UDP map"),
-            }
-        }
-        Ok(())
-    }
 }

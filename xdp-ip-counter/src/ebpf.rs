@@ -8,7 +8,8 @@ use aya_log::BpfLogger;
 use log::warn;
 use std::{
     collections::{HashMap, HashSet},
-    net::Ipv4Addr,
+    hash::Hash,
+    net::{Ipv4Addr, Ipv6Addr},
     sync::{Arc, Mutex},
 };
 use tokio::time::{sleep, Duration};
@@ -63,32 +64,50 @@ pub async fn generate_metrics(
     // and clears local maps when aggr_counter >= aggregate_window
     let mut aggr_counter = 0;
 
-    // tcp_map and udp_map are updated each SAMPLING_SECONDS seconds with the data from ebpf_maps.
+    // tcp_v4 and udp_v4 are updated each SAMPLING_SECONDS seconds with the data from ebpf_maps.
     // Their is added to local_maps each aggregate_window seconds
-    let mut tcp_map: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
-    let mut udp_map: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
+    let mut tcp_v4_tmp: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
+    let mut udp_v4_tmp: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
+    let mut tcp_v6_tmp: HashMap<u16, HashSet<Ipv6Addr>> = HashMap::new();
+    let mut udp_v6_tmp: HashMap<u16, HashSet<Ipv6Addr>> = HashMap::new();
 
-    // Records ip addresses as u32 to later be used to empty ebpf maps.
-    let mut ipv4_u32: HashSet<u32> = HashSet::new();
+    // Records ip addresses as in their original type to later be used to empty ebpf maps.
+    let mut ipv4_orig: HashSet<u32> = HashSet::new();
+    let mut ipv6_orig: HashSet<[u16; 8]> = HashSet::new();
 
     loop {
         sleep(sampling_duration).await;
 
-        for i in shared_maps.tcp.iter() {
+        for i in shared_maps.tcp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut tcp_map, ip, port);
-            ipv4_u32.insert(ip);
+            add_to_map(&mut tcp_v4_tmp, ip, port);
+            ipv4_orig.insert(ip);
         }
-        for i in shared_maps.udp.iter() {
+        for i in shared_maps.udp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut udp_map, ip, port);
-            ipv4_u32.insert(ip);
+            add_to_map(&mut udp_v4_tmp, ip, port);
+            ipv4_orig.insert(ip);
+        }
+
+        for i in shared_maps.tcp_v6.iter() {
+            let (ip, port) = i.unwrap();
+            add_to_map(&mut tcp_v6_tmp, ip, port);
+            ipv6_orig.insert(ip);
+        }
+        for i in shared_maps.udp_v6.iter() {
+            let (ip, port) = i.unwrap();
+            add_to_map(&mut udp_v6_tmp, ip, port);
+            ipv6_orig.insert(ip);
         }
 
         // Removing items from original ebpf maps, each {duration} seconds
-        for ip in ipv4_u32.iter() {
-            shared_maps.remove_from_tcp(ip);
-            shared_maps.remove_from_udp(ip);
+        for ip in ipv4_orig.iter() {
+            shared_maps.remove_from_tcp_v4(ip);
+            shared_maps.remove_from_udp_v4(ip);
+        }
+        for ip in ipv6_orig.iter() {
+            shared_maps.remove_from_tcp_v6(ip);
+            shared_maps.remove_from_udp_v6(ip);
         }
 
         aggr_counter += SAMPLING_SECONDS;
@@ -96,24 +115,44 @@ pub async fn generate_metrics(
             aggr_counter = 0;
 
             let mut cd = local_maps.lock().unwrap();
-            cd.tcp = tcp_map.clone();
-            cd.udp = udp_map.clone();
+            cd.tcp_v4 = tcp_v4_tmp.clone();
+            cd.udp_v4 = udp_v4_tmp.clone();
+            cd.tcp_v6 = tcp_v6_tmp.clone();
+            cd.udp_v6 = udp_v6_tmp.clone();
 
-            tcp_map.clear();
-            udp_map.clear();
-            ipv4_u32.clear();
+            tcp_v4_tmp.clear();
+            udp_v4_tmp.clear();
+            tcp_v6_tmp.clear();
+            udp_v6_tmp.clear();
+            ipv4_orig.clear();
+            ipv6_orig.clear();
         }
     }
 }
 
-fn add_to_map(map: &mut HashMap<u16, HashSet<Ipv4Addr>>, ip: u32, port: u16) {
+fn add_to_map<T, U>(map: &mut HashMap<u16, HashSet<T>>, ip: U, port: u16)
+where
+    T: Eq + Hash + From<U>,
+{
     if map.get(&port).is_some() {
         if let Some(ips) = map.get_mut(&port) {
-            ips.insert(Ipv4Addr::from(ip));
+            ips.insert(T::from(ip));
         }
     } else {
         let mut ip_set = HashSet::new();
-        ip_set.insert(Ipv4Addr::from(ip));
+        ip_set.insert(T::from(ip));
         map.insert(port, ip_set);
     }
 }
+
+// fn add_to_map(map: &mut HashMap<u16, HashSet<Ipv4Addr>>, ip: u32, port: u16) {
+//     if map.get(&port).is_some() {
+//         if let Some(ips) = map.get_mut(&port) {
+//             ips.insert(Ipv4Addr::from(ip));
+//         }
+//     } else {
+//         let mut ip_set = HashSet::new();
+//         ip_set.insert(Ipv4Addr::from(ip));
+//         map.insert(port, ip_set);
+//     }
+// }

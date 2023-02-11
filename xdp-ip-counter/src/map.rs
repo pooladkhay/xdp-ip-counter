@@ -5,55 +5,89 @@ use aya::{
 use log::info;
 use std::{
     collections::{HashMap, HashSet},
-    net::Ipv4Addr,
+    net::{Ipv4Addr, Ipv6Addr},
 };
 
 pub struct LocalMaps {
-    pub tcp: HashMap<u16, HashSet<Ipv4Addr>>,
-    pub udp: HashMap<u16, HashSet<Ipv4Addr>>,
+    pub tcp_v4: HashMap<u16, HashSet<Ipv4Addr>>,
+    pub udp_v4: HashMap<u16, HashSet<Ipv4Addr>>,
+    pub tcp_v6: HashMap<u16, HashSet<Ipv6Addr>>,
+    pub udp_v6: HashMap<u16, HashSet<Ipv6Addr>>,
 }
 impl LocalMaps {
     pub fn new() -> Self {
         Self {
-            tcp: HashMap::new(),
-            udp: HashMap::new(),
+            tcp_v4: HashMap::new(),
+            udp_v4: HashMap::new(),
+            tcp_v6: HashMap::new(),
+            udp_v6: HashMap::new(),
         }
     }
 }
 
+/// SharedMaps respresents maps that are used to share data between kernel-space and user-space
 pub struct SharedMaps {
-    pub tcp: maps::HashMap<MapRefMut, u32, u16>,
-    pub udp: maps::HashMap<MapRefMut, u32, u16>,
+    pub tcp_v4: maps::HashMap<MapRefMut, u32, u16>,
+    pub udp_v4: maps::HashMap<MapRefMut, u32, u16>,
+    pub tcp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
+    pub udp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
 }
 impl SharedMaps {
     /// SharedMaps respresents maps that are used to share data between kernel-space and user-space
     pub fn new(ebpf: &Bpf) -> Self {
         Self {
-            tcp: maps::HashMap::try_from(
-                ebpf.map_mut("TCP_IP_PORT_MAP")
-                    .expect("unable to borrow TCP_IP_PORT_MAP mutably"),
+            tcp_v4: maps::HashMap::try_from(
+                ebpf.map_mut("TCP_IP_V4")
+                    .expect("unable to borrow TCP_IP_V4 mutably"),
             )
-            .expect("failed to create a map from TCP_IP_PORT_MAP"),
-            udp: maps::HashMap::try_from(
-                ebpf.map_mut("UDP_IP_PORT_MAP")
-                    .expect("unable to borrow UDP_IP_PORT_MAP mutably"),
+            .expect("failed to create a map from TCP_IP_V4"),
+            udp_v4: maps::HashMap::try_from(
+                ebpf.map_mut("UDP_IP_V4")
+                    .expect("unable to borrow UDP_IP_V4 mutably"),
             )
-            .expect("failed to create a map from UDP_IP_PORT_MAP"),
+            .expect("failed to create a map from UDP_IP_V4"),
+
+            tcp_v6: maps::HashMap::try_from(
+                ebpf.map_mut("TCP_IP_V6")
+                    .expect("unable to borrow TCP_IP_V6 mutably"),
+            )
+            .expect("failed to create a map from TCP_IP_V6"),
+            udp_v6: maps::HashMap::try_from(
+                ebpf.map_mut("UDP_IP_V6")
+                    .expect("unable to borrow UDP_IP_V6 mutably"),
+            )
+            .expect("failed to create a map from UDP_IP_V6"),
         }
     }
-    pub fn remove_from_tcp(&mut self, ip: &u32) {
-        if self.tcp.get(ip, 0).is_ok() {
-            match self.tcp.remove(ip) {
+    pub fn remove_from_tcp_v4(&mut self, ip: &u32) {
+        if self.tcp_v4.get(ip, 0).is_ok() {
+            match self.tcp_v4.remove(ip) {
                 Ok(_) => {}
-                Err(err) => info!("err removeing from TCP_IP_PORT_MAP: {}", err),
+                Err(err) => info!("err removeing from TCP_IP_V4: {}", err),
             }
         }
     }
-    pub fn remove_from_udp(&mut self, ip: &u32) {
-        if self.udp.get(ip, 0).is_ok() {
-            match self.udp.remove(ip) {
+    pub fn remove_from_udp_v4(&mut self, ip: &u32) {
+        if self.udp_v4.get(ip, 0).is_ok() {
+            match self.udp_v4.remove(ip) {
                 Ok(_) => {}
-                Err(err) => info!("err removeing from TCP_IP_PORT_MAP: {}", err),
+                Err(err) => info!("err removeing from UDP_IP_V4: {}", err),
+            }
+        }
+    }
+    pub fn remove_from_tcp_v6(&mut self, ip: &[u16; 8]) {
+        if self.tcp_v6.get(ip, 0).is_ok() {
+            match self.tcp_v6.remove(ip) {
+                Ok(_) => {}
+                Err(err) => info!("err removeing from TCP_IP_V6: {}", err),
+            }
+        }
+    }
+    pub fn remove_from_udp_v6(&mut self, ip: &[u16; 8]) {
+        if self.udp_v6.get(ip, 0).is_ok() {
+            match self.udp_v6.remove(ip) {
+                Ok(_) => {}
+                Err(err) => info!("err removeing from UDP_IP_V6: {}", err),
             }
         }
     }
