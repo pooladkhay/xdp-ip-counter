@@ -5,7 +5,7 @@ The return code for all received packets is always `XDP_PASS` and the default XD
 
 Note that XDP programs are invoked right after the network driver recieves a packet. Since it doesn't know whether there is an open socket for a specific port or not, it's a good idea to specify ports you care about using `--ports` flag.
 
-Built using Rust and [Aya](https://github.com/aya-rs/aya).
+Built with [Aya](https://github.com/aya-rs/aya) and Rust.
 
 #### CLI --help Output
 ```
@@ -26,10 +26,10 @@ Options:
 ```plain
 # HELP active_users Number of users actively hitting on a specific port.
 # TYPE active_users counter
-active_users{port="22",proto="tcp"} 8
+active_users{ip="v4",proto="tcp",port="22"} 8
 # EOF
 ```
-This indicates that 8 unique IP addresses have tried to connect to port 22 over the past sampling interval.
+This indicates that 8 unique IPv4 addresses have tried to connect to port 22 over the past sampling interval.
 
 ## Build and Run
 
