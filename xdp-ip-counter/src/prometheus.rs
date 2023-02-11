@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fmt::Write,
-    net::Ipv4Addr,
+    hash::Hash,
     sync::{Arc, Mutex},
 };
 
@@ -19,56 +19,76 @@ pub fn generate_mertics(
 
     metrics_buffer.write_str("# TYPE active_users counter\n")?;
 
-    match custom_ports {
-        Some(ports) => {
-            let ports = ports.clone();
-            metrics_custom_ports(&mut metrics_buffer, &local_maps.tcp, "tcp", &ports)?;
-            metrics_custom_ports(&mut metrics_buffer, &local_maps.udp, "udp", &ports)?;
-        }
-        None => {
-            metrics_all_ports(&mut metrics_buffer, &local_maps.tcp, "tcp")?;
-            metrics_all_ports(&mut metrics_buffer, &local_maps.udp, "udp")?;
-        }
-    }
+    metrics_to_buff(
+        &mut metrics_buffer,
+        &local_maps.tcp_v4,
+        "v4",
+        "tcp",
+        &custom_ports,
+    )?;
+    metrics_to_buff(
+        &mut metrics_buffer,
+        &local_maps.udp_v4,
+        "v4",
+        "udp",
+        &custom_ports,
+    )?;
+    metrics_to_buff(
+        &mut metrics_buffer,
+        &local_maps.tcp_v6,
+        "v6",
+        "tcp",
+        &custom_ports,
+    )?;
+    metrics_to_buff(
+        &mut metrics_buffer,
+        &local_maps.udp_v6,
+        "v6",
+        "udp",
+        &custom_ports,
+    )?;
 
     metrics_buffer.write_str("# EOF\n")?;
+
     Ok(metrics_buffer)
 }
 
-fn metrics_all_ports(
+fn metrics_to_buff<T>(
     buf: &mut String,
-    data: &HashMap<u16, HashSet<Ipv4Addr>>,
+    data: &HashMap<u16, HashSet<T>>,
+    ipv: &str,
     proto: &str,
-) -> Result<(), std::fmt::Error> {
-    for (port, ips) in data.iter() {
-        let count = ips.len();
-        buf.write_str(
-            format!(
-                "active_users{{port=\"{}\",proto=\"{}\"}} {}\n",
-                port, proto, count
-            )
-            .as_str(),
-        )?
-    }
-
-    Ok(())
-}
-fn metrics_custom_ports(
-    buf: &mut String,
-    data: &HashMap<u16, HashSet<Ipv4Addr>>,
-    proto: &str,
-    ports: &Vec<u16>,
-) -> Result<(), std::fmt::Error> {
-    for (port, ips) in data.iter() {
-        let count = ips.len();
-        if ports.contains(&port) {
-            buf.write_str(
-                format!(
-                    "active_users{{port=\"{}\",proto=\"{}\"}} {}\n",
-                    port, proto, count
-                )
-                .as_str(),
-            )?;
+    ports: &Option<Vec<u16>>,
+) -> Result<(), std::fmt::Error>
+where
+    T: Eq + Hash,
+{
+    match ports {
+        Some(ports) => {
+            for (port, ips) in data.iter() {
+                let count = ips.len();
+                if ports.contains(&port) {
+                    buf.write_str(
+                        format!(
+                            "active_users{{ip=\"{}\",proto=\"{}\",port=\"{}\"}} {}\n",
+                            ipv, proto, port, count
+                        )
+                        .as_str(),
+                    )?;
+                }
+            }
+        }
+        None => {
+            for (port, ips) in data.iter() {
+                let count = ips.len();
+                buf.write_str(
+                    format!(
+                        "active_users{{ip=\"{}\",proto=\"{}\",port=\"{}\"}} {}\n",
+                        ipv, proto, port, count
+                    )
+                    .as_str(),
+                )?
+            }
         }
     }
 
