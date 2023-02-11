@@ -1,5 +1,5 @@
 ## XDP IP Counter
-This program uses eBPF and XDP to uniquely count IP addresses trying to connect to the host machine (Only IPv4 with TCP or UDP payload). Metrics are then served in Prometheus format.
+This program uses eBPF and XDP to uniquely count IP addresses trying to connect to the host machine (IPv4 and IPv6 with TCP or UDP payloads only). Metrics are then served in Prometheus format.
 
 The return code for all received packets is always `XDP_PASS` and the default XDP attach mode is `SKB_MODE`.
 
