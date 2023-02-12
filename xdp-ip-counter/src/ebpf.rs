@@ -8,8 +8,7 @@ use aya_log::BpfLogger;
 use log::warn;
 use std::{
     collections::{HashMap, HashSet},
-    hash::Hash,
-    net::{Ipv4Addr, Ipv6Addr},
+    net::IpAddr,
     sync::{Arc, Mutex},
 };
 use tokio::time::{sleep, Duration};
@@ -66,13 +65,13 @@ pub async fn generate_metrics(
 
     // tcp_v4 and udp_v4 are updated each SAMPLING_SECONDS seconds with the data from ebpf_maps.
     // Their is added to local_maps each aggregate_window seconds
-    let mut tcp_v4_tmp: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
-    let mut udp_v4_tmp: HashMap<u16, HashSet<Ipv4Addr>> = HashMap::new();
-    let mut tcp_v6_tmp: HashMap<u16, HashSet<Ipv6Addr>> = HashMap::new();
-    let mut udp_v6_tmp: HashMap<u16, HashSet<Ipv6Addr>> = HashMap::new();
+    let mut tcp_v4_tmp: HashMap<u16, HashSet<IpAddr>> = HashMap::new();
+    let mut udp_v4_tmp: HashMap<u16, HashSet<IpAddr>> = HashMap::new();
+    let mut tcp_v6_tmp: HashMap<u16, HashSet<IpAddr>> = HashMap::new();
+    let mut udp_v6_tmp: HashMap<u16, HashSet<IpAddr>> = HashMap::new();
 
     // Records ip addresses as in their original type to later be used to empty ebpf maps.
-    let mut ipv4_orig: HashSet<u32> = HashSet::new();
+    let mut ipv4_orig: HashSet<[u8; 4]> = HashSet::new();
     let mut ipv6_orig: HashSet<[u16; 8]> = HashSet::new();
 
     loop {
@@ -130,29 +129,17 @@ pub async fn generate_metrics(
     }
 }
 
-fn add_to_map<T, U>(map: &mut HashMap<u16, HashSet<T>>, ip: U, port: u16)
+fn add_to_map<U>(map: &mut HashMap<u16, HashSet<IpAddr>>, ip: U, port: u16)
 where
-    T: Eq + Hash + From<U>,
+    IpAddr: From<U>,
 {
     if map.get(&port).is_some() {
         if let Some(ips) = map.get_mut(&port) {
-            ips.insert(T::from(ip));
+            ips.insert(IpAddr::from(ip));
         }
     } else {
         let mut ip_set = HashSet::new();
-        ip_set.insert(T::from(ip));
+        ip_set.insert(IpAddr::from(ip));
         map.insert(port, ip_set);
     }
 }
-
-// fn add_to_map(map: &mut HashMap<u16, HashSet<Ipv4Addr>>, ip: u32, port: u16) {
-//     if map.get(&port).is_some() {
-//         if let Some(ips) = map.get_mut(&port) {
-//             ips.insert(Ipv4Addr::from(ip));
-//         }
-//     } else {
-//         let mut ip_set = HashSet::new();
-//         ip_set.insert(Ipv4Addr::from(ip));
-//         map.insert(port, ip_set);
-//     }
-// }
