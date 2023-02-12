@@ -5,6 +5,7 @@ use tokio::signal;
 
 mod args;
 mod ebpf;
+mod ip_data;
 mod map;
 mod prometheus;
 mod server;
@@ -16,7 +17,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let args = args::Args::parse();
 
     let ebpf = ebpf::init(&args);
-    
+
     let mut shared_maps = map::SharedMaps::new(&ebpf);
     let local_maps = Arc::new(Mutex::new(map::LocalMaps::new()));
 
@@ -29,7 +30,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let lm2 = local_maps.clone();
     let custom_ports = args.parse_custom_ports();
     let server_port = args.parse_server_port();
-    tokio::spawn(async move { server::serve_metrics(lm2, custom_ports, server_port).await });
+    tokio::spawn(async move { server::serve(lm2, custom_ports, server_port).await });
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
