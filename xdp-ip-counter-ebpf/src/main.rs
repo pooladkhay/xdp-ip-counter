@@ -3,7 +3,7 @@
 
 use aya_bpf::{bindings::xdp_action, macros::xdp, programs::XdpContext};
 use aya_log_ebpf::info;
-use core::mem;
+use core::mem::{self, transmute};
 use network_types::{
     eth::{EthHdr, EtherType},
     ip::{IpProto, Ipv4Hdr, Ipv6Hdr},
@@ -42,7 +42,7 @@ fn try_xdp_ip_counter<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
 
 fn count_v4<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
     let ipv4_hdr: *const Ipv4Hdr = unsafe { ptr_at(&ctx, EthHdr::LEN)? };
-    let source_addr = unsafe { (*ipv4_hdr).src_addr };
+    let source_addr: [u8; 4] = unsafe { transmute((*ipv4_hdr).src_addr) };
 
     match unsafe { (*ipv4_hdr).proto } {
         IpProto::Tcp => {
