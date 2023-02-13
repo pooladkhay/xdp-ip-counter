@@ -2,9 +2,9 @@ use std::sync::{Arc, Mutex};
 use warp::reply::json;
 use warp::{http, Filter};
 
-use crate::ip_data;
+use crate::api::ip_data;
+use crate::api::prometheus;
 use crate::map::LocalMaps;
-use crate::prometheus;
 
 pub async fn serve(
     local_maps: Arc<Mutex<LocalMaps>>,

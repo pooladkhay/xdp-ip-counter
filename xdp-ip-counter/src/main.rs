@@ -3,12 +3,10 @@ use log::info;
 use std::sync::{Arc, Mutex};
 use tokio::signal;
 
+mod api;
 mod args;
 mod ebpf;
-mod ip_data;
 mod map;
-mod prometheus;
-mod server;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -30,7 +28,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let lm2 = local_maps.clone();
     let custom_ports = args.parse_custom_ports();
     let server_port = args.parse_server_port();
-    tokio::spawn(async move { server::serve(lm2, custom_ports, server_port).await });
+    tokio::spawn(async move { api::server::serve(lm2, custom_ports, server_port).await });
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;
