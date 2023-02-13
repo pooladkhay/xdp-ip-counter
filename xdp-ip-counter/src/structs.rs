@@ -17,21 +17,24 @@ pub struct IpItem {
     pub proto: String,
 }
 impl IpItem {
-    pub fn new<T>(ip: T, port: u16, proto: &str) -> Self
+    pub fn new<T>(ip: T, port: u16, proto: &str) -> Option<Self>
     where
         IpAddr: From<T>,
     {
         let ip = IpAddr::from(ip);
-        let r#type = match ip {
-            IpAddr::V4(_) => "v4".to_owned(),
-            IpAddr::V6(_) => "v6".to_owned(),
-        };
-        Self {
-            ip,
-            r#type,
-            port,
-            proto: proto.to_owned(),
+        if ip.is_global() {
+            let r#type = match ip {
+                IpAddr::V4(_) => "v4".to_owned(),
+                IpAddr::V6(_) => "v6".to_owned(),
+            };
+            return Some(Self {
+                ip,
+                r#type,
+                port,
+                proto: proto.to_owned(),
+            });
         }
+        None
     }
 }
 

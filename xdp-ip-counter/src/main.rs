@@ -1,3 +1,5 @@
+#![feature(ip)]
+
 use clap::Parser;
 use log::info;
 use std::sync::{Arc, Mutex};

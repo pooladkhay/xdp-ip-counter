@@ -135,15 +135,16 @@ fn add_to_map<T>(map: &mut HashMap<u16, HashSet<IpItem>>, ip: T, port: u16, prot
 where
     IpAddr: From<T>,
 {
-    if map.get(&port).is_some() {
-        if let Some(ips) = map.get_mut(&port) {
-            let ip_item = IpItem::new(ip, port, proto);
-            ips.insert(ip_item);
+    let ip_item = IpItem::new(ip, port, proto);
+    if let Some(ip_item) = ip_item {
+        if map.get(&port).is_some() {
+            if let Some(ips) = map.get_mut(&port) {
+                ips.insert(ip_item);
+            }
+        } else {
+            let mut ip_set = HashSet::new();
+            ip_set.insert(ip_item);
+            map.insert(port, ip_set);
         }
-    } else {
-        let mut ip_set = HashSet::new();
-        let ip_item = IpItem::new(ip, port, proto);
-        ip_set.insert(ip_item);
-        map.insert(port, ip_set);
     }
 }
