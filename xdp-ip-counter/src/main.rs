@@ -30,7 +30,10 @@ async fn main() -> Result<(), anyhow::Error> {
     let lm2 = local_maps.clone();
     let custom_ports = args.parse_custom_ports();
     let server_port = args.parse_server_port();
-    tokio::spawn(async move { api::server::serve(lm2, custom_ports, server_port).await });
+    let serve_ip_list = args.serve_ip_list;
+    tokio::spawn(
+        async move { api::server::serve(lm2, custom_ports, server_port, serve_ip_list).await },
+    );
 
     info!("Waiting for Ctrl-C...");
     signal::ctrl_c().await?;

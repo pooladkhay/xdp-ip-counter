@@ -1,4 +1,4 @@
-use clap::Parser;
+use clap::{ArgAction, Parser};
 
 /// An eBPF XDP program that collects metrics on how many unique IP addresses have tried reach out to a specific port during a certain interval.
 /// Metrics are served in prometheus format on :[server_port]/metrics
@@ -19,6 +19,10 @@ pub struct Args {
     #[clap(short, long, default_value = "3031")]
     /// Port to serve prometheus metrics on (i.e. HTTP Server Port)
     pub server_port: String,
+
+    #[clap(long, action=ArgAction::SetTrue)]
+    /// Whether to serve a list of connected IP addresses on :[server_port]/list
+    pub serve_ip_list: bool,
 }
 
 impl Args {
@@ -80,6 +84,7 @@ mod tests {
             ports: "80,8341,22".to_string(),
             window: "60".to_string(),
             server_port: "3031".to_owned(),
+            serve_ip_list: false,
         };
 
         let expected = vec![80, 8341, 22];
@@ -100,6 +105,7 @@ mod tests {
             ports: "80,8341,22".to_string(),
             window: "60".to_string(),
             server_port: "3031".to_owned(),
+            serve_ip_list: false,
         };
 
         let expected = 60;
@@ -113,6 +119,7 @@ mod tests {
             ports: "80,8341,22".to_string(),
             window: "60".to_string(),
             server_port: "3031".to_owned(),
+            serve_ip_list: false,
         };
 
         let expected = 3031;

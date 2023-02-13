@@ -9,6 +9,7 @@ pub async fn serve(
     local_maps: Arc<Mutex<LocalMaps>>,
     custom_ports: Option<Vec<u16>>,
     server_port: u16,
+    serve_ip_list: bool,
 ) {
     let lm = local_maps.clone();
     let cp = custom_ports.clone();
@@ -18,18 +19,20 @@ pub async fn serve(
         .and(warp::any().map(move || cp.clone()))
         .and_then(prometheus_metrics);
 
-    let ips_route = warp::get()
-        .and(warp::path("list"))
-        .and(warp::any().map(move || local_maps.clone()))
-        .and(warp::any().map(move || custom_ports.clone()))
-        .and_then(ip_data_list);
+    if serve_ip_list {
+        let ips_route = warp::get()
+            .and(warp::path("list"))
+            .and(warp::any().map(move || local_maps.clone()))
+            .and(warp::any().map(move || custom_ports.clone()))
+            .and_then(ip_data_list);
 
-    // let not = warp::any()
-    //     .map(|| warp::reply::with_status("reply".to_owned(), http::StatusCode::NOT_FOUND));
-
-    let routes = warp::get().and(metrics_route.or(ips_route));
-
-    warp::serve(routes).run(([0, 0, 0, 0], server_port)).await;
+        let routes = warp::get().and(metrics_route.or(ips_route));
+        warp::serve(routes).run(([0, 0, 0, 0], server_port)).await;
+    } else {
+        warp::serve(metrics_route)
+            .run(([0, 0, 0, 0], server_port))
+            .await;
+    }
 }
 
 async fn prometheus_metrics(
