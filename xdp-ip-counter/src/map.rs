@@ -3,16 +3,43 @@ use aya::{
     Bpf,
 };
 use log::info;
+use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
     net::IpAddr,
 };
 
+#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+pub struct IpItem {
+    pub ip: IpAddr,
+    pub r#type: String,
+    pub port: u16,
+    pub proto: String,
+}
+impl IpItem {
+    pub fn new<T>(ip: T, port: u16, proto: &str) -> Self
+    where
+        IpAddr: From<T>,
+    {
+        let ip = IpAddr::from(ip);
+        let r#type = match ip {
+            IpAddr::V4(_) => "v4".to_owned(),
+            IpAddr::V6(_) => "v6".to_owned(),
+        };
+        Self {
+            ip,
+            r#type,
+            port,
+            proto: proto.to_owned(),
+        }
+    }
+}
+
 pub struct LocalMaps {
-    pub tcp_v4: HashMap<u16, HashSet<IpAddr>>,
-    pub udp_v4: HashMap<u16, HashSet<IpAddr>>,
-    pub tcp_v6: HashMap<u16, HashSet<IpAddr>>,
-    pub udp_v6: HashMap<u16, HashSet<IpAddr>>,
+    pub tcp_v4: HashMap<u16, HashSet<IpItem>>,
+    pub udp_v4: HashMap<u16, HashSet<IpItem>>,
+    pub tcp_v6: HashMap<u16, HashSet<IpItem>>,
+    pub udp_v6: HashMap<u16, HashSet<IpItem>>,
 }
 impl LocalMaps {
     pub fn new() -> Self {
