@@ -4,10 +4,12 @@ use network_types::ip::IpProto;
 pub const MAP_SIZE: u32 = 10240;
 
 #[map(name = "TCP_IP_V4")]
-pub static mut TCP_IP_V4: HashMap<u32, u16> = HashMap::<u32, u16>::with_max_entries(MAP_SIZE, 0);
+pub static mut TCP_IP_V4: HashMap<[u8; 4], u16> =
+    HashMap::<[u8; 4], u16>::with_max_entries(MAP_SIZE, 0);
 
 #[map(name = "UDP_IP_V4")]
-pub static mut UDP_IP_V4: HashMap<u32, u16> = HashMap::<u32, u16>::with_max_entries(MAP_SIZE, 0);
+pub static mut UDP_IP_V4: HashMap<[u8; 4], u16> =
+    HashMap::<[u8; 4], u16>::with_max_entries(MAP_SIZE, 0);
 
 #[map(name = "TCP_IP_V6")]
 pub static mut TCP_IP_V6: HashMap<[u16; 8], u16> =
@@ -17,9 +19,9 @@ pub static mut TCP_IP_V6: HashMap<[u16; 8], u16> =
 pub static mut UDP_IP_V6: HashMap<[u16; 8], u16> =
     HashMap::<[u16; 8], u16>::with_max_entries(MAP_SIZE, 0);
 
-pub fn add_v4<'a>(ip_proto: IpProto, ip: &u32, port: &u16) -> Result<(), &'a str> {
+pub fn add_v4<'a>(ip_proto: IpProto, ip: &[u8; 4], port: &u16) -> Result<(), &'a str> {
     // Converting IP and Port from Network's endianness to host's endianness
-    let ip = u32::from_be(*ip);
+    let ip = ipv4_from_be(ip);
     let port = u16::from_be(*port);
 
     match ip_proto {
@@ -73,7 +75,7 @@ pub fn add_v6<'a>(ip_proto: IpProto, ip: &[u16; 8], port: &u16) -> Result<(), &'
     Ok(())
 }
 
-/// Converts an array of type [u16; 8] from big endian to the target's endianness
+/// Converts an array of type [u16; 8] (IPv6) from big endian to the target's endianness
 fn ipv6_from_be(ipv6: &[u16; 8]) -> [u16; 8] {
     let mut ip_tmp: [u16; 8] = [0u16; 8];
 
@@ -83,55 +85,13 @@ fn ipv6_from_be(ipv6: &[u16; 8]) -> [u16; 8] {
 
     ip_tmp
 }
+/// Converts an array of type [u8; 4] (IPv4) from big endian to the target's endianness
+fn ipv4_from_be(ipv6: &[u8; 4]) -> [u8; 4] {
+    let mut ip_tmp: [u8; 4] = [0u8; 4];
 
-// pub fn v4_add_tcp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
-//     // Converting IP and Port from Network's endianness to host's endianness
-//     let ip = u32::from_be(*ip);
-//     let port = u16::from_be(*port);
-//     if unsafe { TCP_IP_V4.get(&ip).is_none() } {
-//         match unsafe { TCP_IP_V4.insert(&ip, &port, 0) } {
-//             Ok(_) => {}
-//             Err(_) => return Err("failed to insert into TCP map"),
-//         }
-//     }
-//     Ok(())
-// }
+    for (i, ip) in ipv6.iter().enumerate() {
+        ip_tmp[i] = u8::from_be(*ip)
+    }
 
-// pub fn v4_add_udp<'a>(ip: &u32, port: &u16) -> Result<(), &'a str> {
-//     // Converting IP and Port from Network's endianness to host's endianness
-//     let ip = u32::from_be(*ip);
-//     let port = u16::from_be(*port);
-//     if unsafe { UDP_IP_V4.get(&ip).is_none() } {
-//         match unsafe { UDP_IP_V4.insert(&ip, &port, 0) } {
-//             Ok(_) => {}
-//             Err(_) => return Err("failed to insert into UDP map"),
-//         }
-//     }
-//     Ok(())
-// }
-
-// pub fn v6_add_tcp<'a>(ip: &[u16; 8], port: &u16) -> Result<(), &'a str> {
-//     // Converting IP and Port from Network's endianness to host's endianness
-//     let ip = ipv6_from_be(ip);
-//     let port = u16::from_be(*port);
-//     if unsafe { TCP_IP_V6.get(&ip).is_none() } {
-//         match unsafe { TCP_IP_V6.insert(&ip, &port, 0) } {
-//             Ok(_) => {}
-//             Err(_) => return Err("failed to insert into TCP map"),
-//         }
-//     }
-//     Ok(())
-// }
-
-// pub fn v6_add_udp<'a>(ip: &[u16; 8], port: &u16) -> Result<(), &'a str> {
-//     // Converting IP and Port from Network's endianness to host's endianness
-//     let ip = ipv6_from_be(ip);
-//     let port = u16::from_be(*port);
-//     if unsafe { UDP_IP_V6.get(&ip).is_none() } {
-//         match unsafe { UDP_IP_V6.insert(&ip, &port, 0) } {
-//             Ok(_) => {}
-//             Err(_) => return Err("failed to insert into UDP map"),
-//         }
-//     }
-//     Ok(())
-// }
+    ip_tmp
+}
