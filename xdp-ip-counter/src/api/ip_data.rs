@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use crate::map::{IpItem, LocalMaps};
+use crate::structs::{IpItem, LocalMaps};
 
 pub fn generate_list(
     local_maps: Arc<Mutex<LocalMaps>>,

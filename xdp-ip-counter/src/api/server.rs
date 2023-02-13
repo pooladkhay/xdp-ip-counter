@@ -4,7 +4,7 @@ use warp::{http, Filter};
 
 use crate::api::ip_data;
 use crate::api::prometheus;
-use crate::map::LocalMaps;
+use crate::structs::LocalMaps;
 
 pub async fn serve(
     local_maps: Arc<Mutex<LocalMaps>>,

@@ -15,7 +15,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::{
     args::Args,
-    map::{IpItem, LocalMaps, SharedMaps},
+    structs::{IpItem, LocalMaps, SharedMaps},
 };
 
 pub fn init(args: &Args) -> Bpf {

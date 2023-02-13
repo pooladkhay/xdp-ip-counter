@@ -11,7 +11,7 @@ use network_types::{
     udp::UdpHdr,
 };
 
-mod map;
+mod ebpf_maps;
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
@@ -48,12 +48,12 @@ fn count_v4<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
         IpProto::Tcp => {
             let tcphdr: *const TcpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv4Hdr::LEN) }?;
             let port = unsafe { (*tcphdr).dest };
-            map::add_v4(IpProto::Tcp, &source_addr, &port)?;
+            ebpf_maps::add_v4(IpProto::Tcp, &source_addr, &port)?;
         }
         IpProto::Udp => {
             let udphdr: *const UdpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv4Hdr::LEN) }?;
             let port = unsafe { (*udphdr).dest };
-            map::add_v4(IpProto::Udp, &source_addr, &port)?;
+            ebpf_maps::add_v4(IpProto::Udp, &source_addr, &port)?;
         }
         _ => return Err("only TCP and UDP are supported"),
     };
@@ -69,12 +69,12 @@ fn count_v6<'a>(ctx: &XdpContext) -> Result<(), &'a str> {
         IpProto::Tcp => {
             let tcphdr: *const TcpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv6Hdr::LEN) }?;
             let port = unsafe { (*tcphdr).dest };
-            map::add_v6(IpProto::Tcp, &src_addr, &port)?;
+            ebpf_maps::add_v6(IpProto::Tcp, &src_addr, &port)?;
         }
         IpProto::Udp => {
             let udphdr: *const UdpHdr = unsafe { ptr_at(&ctx, EthHdr::LEN + Ipv6Hdr::LEN) }?;
             let port = unsafe { (*udphdr).dest };
-            map::add_v6(IpProto::Udp, &src_addr, &port)?;
+            ebpf_maps::add_v6(IpProto::Udp, &src_addr, &port)?;
         }
         _ => return Err("only TCP and UDP are supported"),
     }

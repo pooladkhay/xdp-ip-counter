@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::map::LocalMaps;
+use crate::structs::LocalMaps;
 
 pub fn generate_mertics(
     local_maps: Arc<Mutex<LocalMaps>>,

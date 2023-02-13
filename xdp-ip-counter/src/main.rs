@@ -6,7 +6,7 @@ use tokio::signal;
 mod api;
 mod args;
 mod ebpf;
-mod map;
+mod structs;
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
@@ -16,8 +16,8 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let ebpf = ebpf::init(&args);
 
-    let mut shared_maps = map::SharedMaps::new(&ebpf);
-    let local_maps = Arc::new(Mutex::new(map::LocalMaps::new()));
+    let mut shared_maps = structs::SharedMaps::new(&ebpf);
+    let local_maps = Arc::new(Mutex::new(structs::LocalMaps::new()));
 
     let lm1 = local_maps.clone();
     let aggregate_window = args.parse_window();
