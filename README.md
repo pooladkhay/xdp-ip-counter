@@ -3,12 +3,14 @@ An eBPF XDP program that helps with finding IP addresses that have tried to reac
 
 The initial idea was to find out who is connected to what, specifically for services that does not provide such capabilities out of the box.
 
+This project is a work in progress.
+
 #### Technical Notes
-The return code for all received packets is always `XDP_PASS` and the default XDP attach mode is `SKB_MODE`.
+- The return code for all received packets is always `XDP_PASS` and the default XDP attach mode is `SKB_MODE`.
 
-XDP programs are invoked right after the network driver recieves a packet. Since it doesn't know whether there is an open socket for a specific port or not, it's a good idea to specify ports you care about using `--ports` flag.
+- XDP programs are invoked right after the network driver recieves a packet. Since it doesn't know whether there is an open socket for a specific port or not, it's a good idea to specify ports you care about using `--ports` flag.
 
-Built with [Aya](https://github.com/aya-rs/aya) and Rust.
+- Built with [Aya](https://github.com/aya-rs/aya) and Rust.
 
 #### CLI --help Output
 ```
