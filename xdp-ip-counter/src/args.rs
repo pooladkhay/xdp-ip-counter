@@ -1,7 +1,8 @@
 use clap::{ArgAction, Parser};
 
-/// An eBPF XDP program that collects metrics on how many unique IP addresses have tried reach out to a specific port during a certain interval.
-/// Metrics are served in prometheus format on :[server_port]/metrics
+/// An eBPF XDP program that helps with finding IP addresses that have tried to reach out to a specific port during a certain interval.
+/// Metrics are served in prometheus format on :[server_port]/metrics and
+/// IPs are available on :[server_port]/list
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(short, long, default_value = "eth0")]
