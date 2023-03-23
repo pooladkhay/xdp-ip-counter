@@ -57,14 +57,14 @@ async fn ip_data_list(
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let ip_list = ip_data::generate_list(local_maps, custom_ports);
 
-    Ok(warp::reply::with_status(
-        json(&ip_list),
-        http::StatusCode::OK,
-    ))
-
-    // Ok(warp::reply::with_header(
-    //     warp::reply::with_status(metrics_buffer, http::StatusCode::OK),
-    //     "Content-Type",
-    //     "application/openmetrics-text; version=1.0.0; charset=utf-8",
+    // Ok(warp::reply::with_status(
+    //     json(&ip_list),
+    //     http::StatusCode::OK,
     // ))
+
+    Ok(warp::reply::with_header(
+        warp::reply::with_status(json(&ip_list), http::StatusCode::OK),
+        "Access-Control-Allow-Origin",
+        "http://localhost:3000",
+    ))
 }
