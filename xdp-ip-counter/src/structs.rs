@@ -6,32 +6,67 @@ use log::info;
 use serde::Serialize;
 use std::{
     collections::{HashMap, HashSet},
+    fmt::Display,
     net::IpAddr,
 };
 
 #[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+pub enum L3Proto {
+    #[serde(rename = "IPv4")]
+    Ipv4,
+    #[serde(rename = "IPv6")]
+    Ipv6,
+}
+impl Display for L3Proto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            L3Proto::Ipv4 => write!(f, "IPv4"),
+            L3Proto::Ipv6 => write!(f, "IPv6"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+pub enum L4Proto {
+    #[serde(rename = "TCP")]
+    Tcp,
+    #[serde(rename = "UDP")]
+    Udp,
+}
+impl Display for L4Proto {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            L4Proto::Tcp => write!(f, "TCP"),
+            L4Proto::Udp => write!(f, "UDP"),
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
 pub struct IpItem {
     pub ip: IpAddr,
-    pub r#type: String,
+    #[serde(rename = "network")]
+    pub l3_proto: L3Proto,
     pub port: u16,
-    pub proto: String,
+    #[serde(rename = "transport")]
+    pub l4_proto: L4Proto,
 }
 impl IpItem {
-    pub fn new<T>(ip: T, port: u16, proto: &str) -> Option<Self>
+    pub fn new<T>(ip: T, port: u16, l4_proto: L4Proto) -> Option<Self>
     where
         IpAddr: From<T>,
     {
         let ip = IpAddr::from(ip);
         if ip.is_global() {
-            let r#type = match ip {
-                IpAddr::V4(_) => "v4".to_owned(),
-                IpAddr::V6(_) => "v6".to_owned(),
+            let l3_proto = match ip {
+                IpAddr::V4(_) => L3Proto::Ipv4,
+                IpAddr::V6(_) => L3Proto::Ipv6,
             };
             return Some(Self {
                 ip,
-                r#type,
+                l3_proto,
                 port,
-                proto: proto.to_owned(),
+                l4_proto,
             });
         }
         None

@@ -5,7 +5,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::structs::LocalMaps;
+use crate::structs::{L3Proto, L4Proto, LocalMaps};
 
 pub fn generate_mertics(
     local_maps: Arc<Mutex<LocalMaps>>,
@@ -22,29 +22,29 @@ pub fn generate_mertics(
     metrics_to_buff(
         &mut metrics_buffer,
         &local_maps.tcp_v4,
-        "v4",
-        "tcp",
+        L3Proto::Ipv4,
+        L4Proto::Tcp,
         &custom_ports,
     )?;
     metrics_to_buff(
         &mut metrics_buffer,
         &local_maps.udp_v4,
-        "v4",
-        "udp",
+        L3Proto::Ipv4,
+        L4Proto::Udp,
         &custom_ports,
     )?;
     metrics_to_buff(
         &mut metrics_buffer,
         &local_maps.tcp_v6,
-        "v6",
-        "tcp",
+        L3Proto::Ipv6,
+        L4Proto::Tcp,
         &custom_ports,
     )?;
     metrics_to_buff(
         &mut metrics_buffer,
         &local_maps.udp_v6,
-        "v6",
-        "udp",
+        L3Proto::Ipv6,
+        L4Proto::Udp,
         &custom_ports,
     )?;
 
@@ -56,8 +56,8 @@ pub fn generate_mertics(
 fn metrics_to_buff<T>(
     buf: &mut String,
     data: &HashMap<u16, HashSet<T>>,
-    ipv: &str,
-    proto: &str,
+    l3_proto: L3Proto,
+    l4_proto: L4Proto,
     ports: &Option<Vec<u16>>,
 ) -> Result<(), std::fmt::Error>
 where
@@ -70,8 +70,8 @@ where
                 if ports.contains(&port) {
                     buf.write_str(
                         format!(
-                            "active_users{{ip=\"{}\",proto=\"{}\",port=\"{}\"}} {}\n",
-                            ipv, proto, port, count
+                            "active_users{{network=\"{}\",transport=\"{}\",port=\"{}\"}} {}\n",
+                            l3_proto, l4_proto, port, count
                         )
                         .as_str(),
                     )?;
@@ -83,8 +83,8 @@ where
                 let count = ips.len();
                 buf.write_str(
                     format!(
-                        "active_users{{ip=\"{}\",proto=\"{}\",port=\"{}\"}} {}\n",
-                        ipv, proto, port, count
+                        "active_users{{network=\"{}\",transport=\"{}\",port=\"{}\"}} {}\n",
+                        l3_proto, l4_proto, port, count
                     )
                     .as_str(),
                 )?

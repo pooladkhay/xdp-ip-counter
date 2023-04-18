@@ -15,7 +15,7 @@ use tokio::time::{sleep, Duration};
 
 use crate::{
     args::Args,
-    structs::{IpItem, LocalMaps, SharedMaps},
+    structs::{IpItem, L4Proto, LocalMaps, SharedMaps},
 };
 
 pub fn init(args: &Args) -> Bpf {
@@ -81,23 +81,23 @@ pub async fn generate_metrics(
 
         for i in shared_maps.tcp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut tcp_v4_tmp, ip, port, "tcp");
+            add_to_map(&mut tcp_v4_tmp, ip, port, L4Proto::Tcp);
             ipv4_orig.insert(ip);
         }
         for i in shared_maps.udp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut udp_v4_tmp, ip, port, "udp");
+            add_to_map(&mut udp_v4_tmp, ip, port, L4Proto::Udp);
             ipv4_orig.insert(ip);
         }
 
         for i in shared_maps.tcp_v6.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut tcp_v6_tmp, ip, port, "tcp");
+            add_to_map(&mut tcp_v6_tmp, ip, port, L4Proto::Tcp);
             ipv6_orig.insert(ip);
         }
         for i in shared_maps.udp_v6.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut udp_v6_tmp, ip, port, "udp");
+            add_to_map(&mut udp_v6_tmp, ip, port, L4Proto::Udp);
             ipv6_orig.insert(ip);
         }
 
@@ -131,11 +131,11 @@ pub async fn generate_metrics(
     }
 }
 
-fn add_to_map<T>(map: &mut HashMap<u16, HashSet<IpItem>>, ip: T, port: u16, proto: &str)
+fn add_to_map<T>(map: &mut HashMap<u16, HashSet<IpItem>>, ip: T, port: u16, l4_proto: L4Proto)
 where
     IpAddr: From<T>,
 {
-    let ip_item = IpItem::new(ip, port, proto);
+    let ip_item = IpItem::new(ip, port, l4_proto);
     if let Some(ip_item) = ip_item {
         if map.get(&port).is_some() {
             if let Some(ips) = map.get_mut(&port) {
