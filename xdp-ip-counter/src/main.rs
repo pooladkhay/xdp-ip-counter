@@ -27,11 +27,11 @@ async fn main() -> Result<(), anyhow::Error> {
         async move { ebpf::collect(&mut shared_maps, local_map, tx, aggregate_window).await }
     });
 
-    // tokio::spawn({
-    //     let local_map = local_map.clone();
-    //     let custom_ports = args.parse_custom_ports();
-    //     async move { metrics::generate(local_map, custom_ports, rx).await }
-    // });
+    tokio::spawn({
+        let local_map = local_map.clone();
+        let custom_ports = args.parse_custom_ports();
+        async move { metrics::generate(local_map, custom_ports, rx).await }
+    });
 
     // tokio::spawn({
     //     let _lm = local_map.clone();
