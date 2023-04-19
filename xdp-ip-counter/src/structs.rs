@@ -10,7 +10,8 @@ use std::{
     net::IpAddr,
 };
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Debug)]
+#[non_exhaustive]
 pub enum L3Proto {
     #[serde(rename = "IPv4")]
     Ipv4,
@@ -26,33 +27,33 @@ impl Display for L3Proto {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Debug)]
+#[non_exhaustive]
 pub enum L4Proto {
     #[serde(rename = "TCP")]
-    Tcp,
+    Tcp(u16),
     #[serde(rename = "UDP")]
-    Udp,
+    Udp(u16),
 }
 impl Display for L4Proto {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            L4Proto::Tcp => write!(f, "TCP"),
-            L4Proto::Udp => write!(f, "UDP"),
+            L4Proto::Tcp(_) => write!(f, "TCP"),
+            L4Proto::Udp(_) => write!(f, "UDP"),
         }
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Debug)]
 pub struct IpItem {
     pub ip: IpAddr,
     #[serde(rename = "network")]
     pub l3_proto: L3Proto,
-    pub port: u16,
     #[serde(rename = "transport")]
     pub l4_proto: L4Proto,
 }
 impl IpItem {
-    pub fn new<T>(ip: T, port: u16, l4_proto: L4Proto) -> Option<Self>
+    pub fn new<T>(ip: T, l4_proto: &L4Proto) -> Option<Self>
     where
         IpAddr: From<T>,
     {
@@ -65,27 +66,72 @@ impl IpItem {
             return Some(Self {
                 ip,
                 l3_proto,
-                port,
-                l4_proto,
+                l4_proto: *l4_proto,
             });
         }
         None
     }
 }
 
-pub struct LocalMaps {
-    pub tcp_v4: HashMap<u16, HashSet<IpItem>>,
-    pub udp_v4: HashMap<u16, HashSet<IpItem>>,
-    pub tcp_v6: HashMap<u16, HashSet<IpItem>>,
-    pub udp_v6: HashMap<u16, HashSet<IpItem>>,
+// pub struct LocalMaps {
+//     pub tcp_v4: HashMap<u16, HashSet<IpItem>>,
+//     pub udp_v4: HashMap<u16, HashSet<IpItem>>,
+//     pub tcp_v6: HashMap<u16, HashSet<IpItem>>,
+//     pub udp_v6: HashMap<u16, HashSet<IpItem>>,
+// }
+// impl LocalMaps {
+//     pub fn new() -> Self {
+//         Self {
+//             tcp_v4: HashMap::new(),
+//             udp_v4: HashMap::new(),
+//             tcp_v6: HashMap::new(),
+//             udp_v6: HashMap::new(),
+//         }
+//     }
+// }
+
+#[derive(Debug)]
+pub struct LocalMap {
+    pub inner_aggr: HashMap<L3Proto, HashMap<L4Proto, HashSet<IpItem>>>,
+    pub inner_tmp: HashMap<L3Proto, HashMap<L4Proto, HashSet<IpItem>>>,
 }
-impl LocalMaps {
+impl LocalMap {
     pub fn new() -> Self {
         Self {
-            tcp_v4: HashMap::new(),
-            udp_v4: HashMap::new(),
-            tcp_v6: HashMap::new(),
-            udp_v6: HashMap::new(),
+            inner_aggr: HashMap::new(),
+            inner_tmp: HashMap::new(),
+        }
+    }
+
+    pub fn aggr(&mut self) {
+        self.inner_aggr = self.inner_tmp.clone();
+        self.inner_tmp.clear();
+    }
+
+    pub fn add_tmp<T>(&mut self, l3_proto: L3Proto, l4_proto: L4Proto, ip: T)
+    where
+        IpAddr: From<T>,
+    {
+        if let Some(ip_item) = IpItem::new(ip, &l4_proto) {
+            if let Some(map) = self.inner_tmp.get_mut(&l3_proto) {
+                if let Some(set) = map.get_mut(&l4_proto) {
+                    set.insert(ip_item);
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(ip_item);
+                    map.insert(l4_proto, set);
+                }
+            } else {
+                let mut set = HashSet::new();
+                set.insert(ip_item);
+
+                let mut map = HashMap::new();
+                map.insert(l4_proto, set);
+
+                self.inner_tmp.insert(l3_proto, map);
+            }
+        } else {
+            // ip is local
         }
     }
 }
