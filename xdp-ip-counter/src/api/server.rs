@@ -2,28 +2,22 @@ use std::sync::{Arc, Mutex};
 use warp::reply::json;
 use warp::{http, Filter};
 
-use crate::api::{ip_data, prometheus};
-use crate::structs::LocalMaps;
+use crate::api::prometheus;
+use crate::structs::LocalMap;
 
-pub async fn serve(
-    local_maps: Arc<Mutex<LocalMaps>>,
-    custom_ports: Option<Vec<u16>>,
-    server_port: u16,
-    serve_ip_list: bool,
-) {
-    let lm = local_maps.clone();
-    let cp = custom_ports.clone();
+pub async fn serve(local_map: Arc<Mutex<LocalMap>>, server_port: u16, serve_ip_list: bool) {
+    let lm1 = local_map.clone();
+    let lm2 = local_map.clone();
+
     let metrics_route = warp::get()
         .and(warp::path("metrics"))
-        .and(warp::any().map(move || lm.clone()))
-        .and(warp::any().map(move || cp.clone()))
+        .and(warp::any().map(move || lm1.clone()))
         .and_then(prometheus_metrics);
 
     if serve_ip_list {
         let ips_route = warp::get()
             .and(warp::path("list"))
-            .and(warp::any().map(move || local_maps.clone()))
-            .and(warp::any().map(move || custom_ports.clone()))
+            .and(warp::any().map(move || lm2.clone()))
             .and_then(ip_data_list);
 
         let routes = warp::get().and(metrics_route.or(ips_route));
@@ -36,10 +30,9 @@ pub async fn serve(
 }
 
 async fn prometheus_metrics(
-    local_maps: Arc<Mutex<LocalMaps>>,
-    custom_ports: Option<Vec<u16>>,
+    local_map: Arc<Mutex<LocalMap>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    match prometheus::generate_mertics(local_maps, custom_ports) {
+    match prometheus::generate_mertics(local_map) {
         Ok(metrics_buffer) => Ok(warp::reply::with_status(
             metrics_buffer,
             http::StatusCode::OK,
@@ -52,19 +45,21 @@ async fn prometheus_metrics(
 }
 
 async fn ip_data_list(
-    local_maps: Arc<Mutex<LocalMaps>>,
-    custom_ports: Option<Vec<u16>>,
+    local_map: Arc<Mutex<LocalMap>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
-    let ip_list = ip_data::generate_list(local_maps, custom_ports);
-
-    // Ok(warp::reply::with_status(
-    //     json(&ip_list),
-    //     http::StatusCode::OK,
-    // ))
+    let local_map = local_map
+        .lock()
+        .expect("unable to accuire lock for local_map");
+    let ip_list = local_map.get_ip_list();
 
     Ok(warp::reply::with_header(
         warp::reply::with_status(json(&ip_list), http::StatusCode::OK),
         "Access-Control-Allow-Origin",
         "http://localhost:3000",
     ))
+
+    // Ok(warp::reply::with_status(
+    //     json(&ip_list),
+    //     http::StatusCode::OK,
+    // ))
 }

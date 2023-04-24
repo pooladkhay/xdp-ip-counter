@@ -10,7 +10,9 @@ use std::{
     net::IpAddr,
 };
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+/// L3Proto represents the layer 3 protocol of a packet.
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Debug)]
+#[non_exhaustive]
 pub enum L3Proto {
     #[serde(rename = "IPv4")]
     Ipv4,
@@ -26,33 +28,35 @@ impl Display for L3Proto {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+/// L4Proto represents the layer 4 protocol of a packet and the port number.  
+#[derive(PartialEq, Eq, Hash, Clone, Copy, Serialize, Debug)]
+#[non_exhaustive]
 pub enum L4Proto {
     #[serde(rename = "TCP")]
-    Tcp,
+    Tcp(u16),
     #[serde(rename = "UDP")]
-    Udp,
+    Udp(u16),
 }
 impl Display for L4Proto {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            L4Proto::Tcp => write!(f, "TCP"),
-            L4Proto::Udp => write!(f, "UDP"),
+            L4Proto::Tcp(_) => write!(f, "TCP"),
+            L4Proto::Udp(_) => write!(f, "UDP"),
         }
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Clone, Serialize)]
+#[derive(PartialEq, Eq, Hash, Clone, Serialize, Debug)]
 pub struct IpItem {
-    pub ip: IpAddr,
+    ip: IpAddr,
     #[serde(rename = "network")]
-    pub l3_proto: L3Proto,
-    pub port: u16,
+    l3_proto: L3Proto,
     #[serde(rename = "transport")]
-    pub l4_proto: L4Proto,
+    l4_proto: String,
+    port: u16,
 }
 impl IpItem {
-    pub fn new<T>(ip: T, port: u16, l4_proto: L4Proto) -> Option<Self>
+    pub fn new<T>(ip: T, l4_proto: &L4Proto) -> Option<Self>
     where
         IpAddr: From<T>,
     {
@@ -62,43 +66,95 @@ impl IpItem {
                 IpAddr::V4(_) => L3Proto::Ipv4,
                 IpAddr::V6(_) => L3Proto::Ipv6,
             };
+            let port = match l4_proto {
+                L4Proto::Tcp(port) => *port,
+                L4Proto::Udp(port) => *port,
+            };
             return Some(Self {
                 ip,
                 l3_proto,
+                l4_proto: (*l4_proto.to_string()).to_string(),
                 port,
-                l4_proto,
             });
         }
         None
     }
 }
 
-pub struct LocalMaps {
-    pub tcp_v4: HashMap<u16, HashSet<IpItem>>,
-    pub udp_v4: HashMap<u16, HashSet<IpItem>>,
-    pub tcp_v6: HashMap<u16, HashSet<IpItem>>,
-    pub udp_v6: HashMap<u16, HashSet<IpItem>>,
+/// LocalMap respresents maps that are used to store data in an appropriate format to be served to users
+pub struct LocalMap {
+    inner_aggr: HashMap<L3Proto, HashMap<L4Proto, HashSet<IpItem>>>,
+    inner_tmp: HashMap<L3Proto, HashMap<L4Proto, HashSet<IpItem>>>,
 }
-impl LocalMaps {
+impl LocalMap {
     pub fn new() -> Self {
         Self {
-            tcp_v4: HashMap::new(),
-            udp_v4: HashMap::new(),
-            tcp_v6: HashMap::new(),
-            udp_v6: HashMap::new(),
+            inner_aggr: HashMap::new(),
+            inner_tmp: HashMap::new(),
         }
+    }
+
+    /// Saves the collected data from the past aggregate_window to be served for the next aggregate_window.
+    /// Check ebpf::collect() for more details.  
+    pub fn aggr(&mut self) {
+        self.inner_aggr.clear();
+        self.inner_aggr = self.inner_tmp.clone();
+        self.inner_tmp.clear();
+    }
+
+    pub fn add_tmp<T>(&mut self, l3_proto: L3Proto, l4_proto: L4Proto, ip: T)
+    where
+        IpAddr: From<T>,
+    {
+        if let Some(ip_item) = IpItem::new(ip, &l4_proto) {
+            if let Some(map) = self.inner_tmp.get_mut(&l3_proto) {
+                if let Some(set) = map.get_mut(&l4_proto) {
+                    set.insert(ip_item);
+                } else {
+                    let mut set = HashSet::new();
+                    set.insert(ip_item);
+                    map.insert(l4_proto, set);
+                }
+            } else {
+                let mut set = HashSet::new();
+                set.insert(ip_item);
+
+                let mut map = HashMap::new();
+                map.insert(l4_proto, set);
+
+                self.inner_tmp.insert(l3_proto, map);
+            }
+        } else {
+            // ip is local
+        }
+    }
+
+    pub fn get_prom_metrics(&self) -> &HashMap<L3Proto, HashMap<L4Proto, HashSet<IpItem>>> {
+        &self.inner_aggr
+    }
+
+    pub fn get_ip_list(&self) -> Vec<&IpItem> {
+        let mut ip_list: Vec<&IpItem> = vec![];
+        for (_, l4_set) in self.inner_aggr.iter() {
+            for (_, set) in l4_set {
+                let mut items: Vec<&IpItem> = set.iter().collect();
+                ip_list.append(&mut items)
+            }
+        }
+        ip_list
     }
 }
 
 /// SharedMaps respresents maps that are used to share data between kernel-space and user-space
 pub struct SharedMaps {
+    pub use_custom_ports: maps::Array<MapRefMut, u8>,
+    pub custom_ports: maps::HashMap<MapRefMut, u16, u8>,
     pub tcp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
     pub udp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
     pub tcp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
     pub udp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
 }
 impl SharedMaps {
-    /// SharedMaps respresents maps that are used to share data between kernel-space and user-space
     pub fn new(ebpf: &Bpf) -> Self {
         Self {
             tcp_v4: maps::HashMap::try_from(
@@ -122,6 +178,18 @@ impl SharedMaps {
                     .expect("unable to borrow UDP_IP_V6 mutably"),
             )
             .expect("failed to create a map from UDP_IP_V6"),
+
+            custom_ports: maps::HashMap::try_from(
+                ebpf.map_mut("CUSTOM_PORTS")
+                    .expect("unable to borrow CUSTOM_PORTS mutably"),
+            )
+            .expect("failed to create a map from CUSTOM_PORTS"),
+
+            use_custom_ports: maps::Array::try_from(
+                ebpf.map_mut("USE_CUSTOM_PORTS")
+                    .expect("unable to borrow USE_CUSTOM_PORTS mutably"),
+            )
+            .expect("failed to create a map from USE_CUSTOM_PORTS"),
         }
     }
     pub fn remove_from_tcp_v4(&mut self, ip: &[u8; 4]) {

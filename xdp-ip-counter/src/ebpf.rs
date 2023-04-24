@@ -7,15 +7,14 @@ use aya::{
 use aya_log::BpfLogger;
 use log::warn;
 use std::{
-    collections::{HashMap, HashSet},
-    net::IpAddr,
+    collections::HashSet,
     sync::{Arc, Mutex},
 };
 use tokio::time::{sleep, Duration};
 
 use crate::{
     args::Args,
-    structs::{IpItem, L4Proto, LocalMaps, SharedMaps},
+    structs::{L3Proto, L4Proto, LocalMap, SharedMaps},
 };
 
 pub fn init(args: &Args) -> Bpf {
@@ -52,25 +51,19 @@ pub fn init(args: &Args) -> Bpf {
     bpf
 }
 
-pub async fn generate_metrics(
+pub async fn collect(
     shared_maps: &mut SharedMaps,
-    local_maps: Arc<Mutex<LocalMaps>>,
+    local_map: Arc<Mutex<LocalMap>>,
     aggregate_window: u64,
 ) {
-    // Program reads from ebpf_maps each SAMPLING_SECONDS seconds then clears ebpf maps since their capacity is limited.
+    // Program reads from ebpf maps (shared maps) to local_map's tmp area each SAMPLING_SECONDS seconds then clears ebpf maps.
     const SAMPLING_SECONDS: u64 = 10;
     let sampling_duration = Duration::from_secs(SAMPLING_SECONDS);
 
-    // Program aggregates final results to be served in prometheus format
-    // and clears local maps when aggr_counter >= aggregate_window
+    // Each aggregate_window seconds (when aggr_counter >= aggregate_window), data read to local_map's tmp area is added to local_map's aggr area.
+    // The idea is to clear ebps maps every sampling_duration seconds no matter what aggregate_window user wants since ebpf maps' capacities are limited.
+    // See the definition of LocalMap for more details.
     let mut aggr_counter = 0;
-
-    // tcp_v4 and udp_v4 are updated each SAMPLING_SECONDS seconds with the data from ebpf_maps.
-    // Their is added to local_maps each aggregate_window seconds
-    let mut tcp_v4_tmp: HashMap<u16, HashSet<IpItem>> = HashMap::new();
-    let mut udp_v4_tmp: HashMap<u16, HashSet<IpItem>> = HashMap::new();
-    let mut tcp_v6_tmp: HashMap<u16, HashSet<IpItem>> = HashMap::new();
-    let mut udp_v6_tmp: HashMap<u16, HashSet<IpItem>> = HashMap::new();
 
     // Records ip addresses as in their original type to later be used to empty ebpf maps.
     let mut ipv4_orig: HashSet<[u8; 4]> = HashSet::new();
@@ -81,23 +74,39 @@ pub async fn generate_metrics(
 
         for i in shared_maps.tcp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut tcp_v4_tmp, ip, port, L4Proto::Tcp);
+            if let Ok(ref mut map) = local_map.try_lock() {
+                map.add_tmp(L3Proto::Ipv4, L4Proto::Tcp(port), ip)
+            } else {
+                println!("failed")
+            }
             ipv4_orig.insert(ip);
         }
         for i in shared_maps.udp_v4.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut udp_v4_tmp, ip, port, L4Proto::Udp);
+            if let Ok(ref mut map) = local_map.try_lock() {
+                map.add_tmp(L3Proto::Ipv4, L4Proto::Udp(port), ip)
+            } else {
+                println!("failed")
+            }
             ipv4_orig.insert(ip);
         }
 
         for i in shared_maps.tcp_v6.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut tcp_v6_tmp, ip, port, L4Proto::Tcp);
+            if let Ok(ref mut map) = local_map.try_lock() {
+                map.add_tmp(L3Proto::Ipv6, L4Proto::Tcp(port), ip)
+            } else {
+                println!("failed")
+            }
             ipv6_orig.insert(ip);
         }
         for i in shared_maps.udp_v6.iter() {
             let (ip, port) = i.unwrap();
-            add_to_map(&mut udp_v6_tmp, ip, port, L4Proto::Udp);
+            if let Ok(ref mut map) = local_map.try_lock() {
+                map.add_tmp(L3Proto::Ipv6, L4Proto::Udp(port), ip)
+            } else {
+                println!("failed")
+            }
             ipv6_orig.insert(ip);
         }
 
@@ -106,45 +115,20 @@ pub async fn generate_metrics(
             shared_maps.remove_from_tcp_v4(ip);
             shared_maps.remove_from_udp_v4(ip);
         }
+        ipv4_orig.clear();
         for ip in ipv6_orig.iter() {
             shared_maps.remove_from_tcp_v6(ip);
             shared_maps.remove_from_udp_v6(ip);
         }
+        ipv6_orig.clear();
 
         aggr_counter += SAMPLING_SECONDS;
         if aggr_counter >= aggregate_window {
             aggr_counter = 0;
 
-            let mut lm = local_maps.lock().unwrap();
-            lm.tcp_v4 = tcp_v4_tmp.clone();
-            lm.udp_v4 = udp_v4_tmp.clone();
-            lm.tcp_v6 = tcp_v6_tmp.clone();
-            lm.udp_v6 = udp_v6_tmp.clone();
-
-            tcp_v4_tmp.clear();
-            udp_v4_tmp.clear();
-            tcp_v6_tmp.clear();
-            udp_v6_tmp.clear();
-            ipv4_orig.clear();
-            ipv6_orig.clear();
-        }
-    }
-}
-
-fn add_to_map<T>(map: &mut HashMap<u16, HashSet<IpItem>>, ip: T, port: u16, l4_proto: L4Proto)
-where
-    IpAddr: From<T>,
-{
-    let ip_item = IpItem::new(ip, port, l4_proto);
-    if let Some(ip_item) = ip_item {
-        if map.get(&port).is_some() {
-            if let Some(ips) = map.get_mut(&port) {
-                ips.insert(ip_item);
+            if let Ok(ref mut local_map) = local_map.try_lock() {
+                local_map.aggr();
             }
-        } else {
-            let mut ip_set = HashSet::new();
-            ip_set.insert(ip_item);
-            map.insert(port, ip_set);
         }
     }
 }
