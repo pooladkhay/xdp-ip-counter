@@ -32,7 +32,7 @@ Options:
 ```plain
 # HELP active_users Number of users actively hitting on a specific port.
 # TYPE active_users counter
-active_users{ip="v4",proto="tcp",port="22"} 8
+active_users{network="IPv4",transport="TCP",port="22"} 8
 # EOF
 ```
 Available at `:[server_port]/metrics`, This indicates that 8 unique IPv4 addresses have tried to connect to port 22 over the past sampling interval.
@@ -42,15 +42,15 @@ Available at `:[server_port]/metrics`, This indicates that 8 unique IPv4 address
 [
   {
     "ip": "xxx.xxx.xxx.xxx",
-    "type": "v4",
-    "port": 22,
-    "proto": "tcp"
+    "network": "IPv4",
+    "transport": "TCP",
+    "port": 22
   },
   {
     "ip": "yyy.yyy.yyy.yyy",
-    "type": "v4",
-    "port": 22,
-    "proto": "tcp"
+    "network": "IPv4",
+    "transport": "TCP",
+    "port": 22
   },
   ...
 }
