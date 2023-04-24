@@ -10,10 +10,7 @@ use std::{
     collections::HashSet,
     sync::{Arc, Mutex},
 };
-use tokio::{
-    sync::mpsc::Sender,
-    time::{sleep, Duration},
-};
+use tokio::time::{sleep, Duration};
 
 use crate::{
     args::Args,
@@ -57,7 +54,6 @@ pub fn init(args: &Args) -> Bpf {
 pub async fn collect(
     shared_maps: &mut SharedMaps,
     local_map: Arc<Mutex<LocalMap>>,
-    tx: Sender<bool>,
     aggregate_window: u64,
 ) {
     // Program reads from ebpf maps (shared maps) to local_map's tmp area each SAMPLING_SECONDS seconds then clears ebpf maps.
@@ -65,7 +61,7 @@ pub async fn collect(
     let sampling_duration = Duration::from_secs(SAMPLING_SECONDS);
 
     // Each aggregate_window seconds (when aggr_counter >= aggregate_window), data read to local_map's tmp area is added to local_map's aggr area.
-    // The idea is to clear ebps maps every sampling_duration seconds no matter what aggregate_window user wants since ebpf maps' capacity is limited.
+    // The idea is to clear ebps maps every sampling_duration seconds no matter what aggregate_window user wants since ebpf maps' capacities are limited.
     // See the definition of LocalMap for more details.
     let mut aggr_counter = 0;
 
@@ -120,7 +116,6 @@ pub async fn collect(
             shared_maps.remove_from_udp_v4(ip);
         }
         ipv4_orig.clear();
-
         for ip in ipv6_orig.iter() {
             shared_maps.remove_from_tcp_v6(ip);
             shared_maps.remove_from_udp_v6(ip);
@@ -133,9 +128,6 @@ pub async fn collect(
 
             if let Ok(ref mut local_map) = local_map.try_lock() {
                 local_map.aggr();
-            }
-            if let Err(_) = tx.send(true).await {
-                println!("failed to send data to channel")
             }
         }
     }
