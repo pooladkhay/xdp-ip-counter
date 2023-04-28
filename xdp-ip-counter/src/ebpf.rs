@@ -72,7 +72,7 @@ pub async fn collect(
     loop {
         sleep(sampling_duration).await;
 
-        for i in shared_maps.tcp_v4.iter() {
+        for i in shared_maps.get_tcp_v4().iter() {
             let (ip, port) = i.unwrap();
             if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv4, L4Proto::Tcp(port), ip)
@@ -81,7 +81,7 @@ pub async fn collect(
             }
             ipv4_orig.insert(ip);
         }
-        for i in shared_maps.udp_v4.iter() {
+        for i in shared_maps.get_udp_v4().iter() {
             let (ip, port) = i.unwrap();
             if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv4, L4Proto::Udp(port), ip)
@@ -91,7 +91,7 @@ pub async fn collect(
             ipv4_orig.insert(ip);
         }
 
-        for i in shared_maps.tcp_v6.iter() {
+        for i in shared_maps.get_tcp_v6().iter() {
             let (ip, port) = i.unwrap();
             if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv6, L4Proto::Tcp(port), ip)
@@ -100,7 +100,7 @@ pub async fn collect(
             }
             ipv6_orig.insert(ip);
         }
-        for i in shared_maps.udp_v6.iter() {
+        for i in shared_maps.get_udp_v6().iter() {
             let (ip, port) = i.unwrap();
             if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv6, L4Proto::Udp(port), ip)

@@ -149,10 +149,10 @@ impl LocalMap {
 pub struct SharedMaps {
     use_custom_ports: maps::Array<MapRefMut, u8>,
     custom_ports: maps::HashMap<MapRefMut, u16, u8>,
-    pub tcp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
-    pub udp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
-    pub tcp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
-    pub udp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
+    tcp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
+    udp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
+    tcp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
+    udp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
 }
 impl SharedMaps {
     pub fn new(ebpf: &Bpf) -> Self {
@@ -192,6 +192,19 @@ impl SharedMaps {
             .expect("failed to create a map from USE_CUSTOM_PORTS"),
         }
     }
+    pub fn get_tcp_v4(&self) -> &maps::HashMap<MapRefMut, [u8; 4], u16> {
+        &self.tcp_v4
+    }
+    pub fn get_udp_v4(&self) -> &maps::HashMap<MapRefMut, [u8; 4], u16> {
+        &self.udp_v4
+    }
+    pub fn get_tcp_v6(&self) -> &maps::HashMap<MapRefMut, [u16; 8], u16> {
+        &self.tcp_v6
+    }
+    pub fn get_udp_v6(&self) -> &maps::HashMap<MapRefMut, [u16; 8], u16> {
+        &self.udp_v6
+    }
+
     pub fn remove_from_tcp_v4(&mut self, ip: &[u8; 4]) {
         if self.tcp_v4.get(ip, 0).is_ok() {
             match self.tcp_v4.remove(ip) {
