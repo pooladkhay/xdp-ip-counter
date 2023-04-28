@@ -4,6 +4,7 @@ use clap::{ArgAction, Parser};
 /// Metrics are served in prometheus format on :[server_port]/metrics and
 /// IPs are available on :[server_port]/list
 #[derive(Debug, Parser)]
+#[command(version)]
 pub struct Args {
     #[clap(short, long, default_value = "eth0")]
     /// Network Interface to attach eBPF program to.
