@@ -58,40 +58,19 @@ Available at `:[server_port]/metrics`, This indicates that 8 unique IPv4 address
 
 Served at `:[server_port]/list`
 
-## Build and Run
+## Build and Run 
 
-- Install the Rust toolchain: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- Install the Rust nightly toolchain: `rustup install nightly`
-- Install bpf-linker: `cargo install bpf-linker`
+#### Static binary
+1. Install rust stable toolchain: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+1. Install rust nightly toolchain with the rust-src component: `rustup toolchain install nightly --component rust-src`
+1. Add x86_64-unknown-linux-musl target: `rustup target add x86_64-unknown-linux-musl`
+1. Install bpf-linker: `cargo install bpf-linker`
+1. Build eBPF: `cargo xtask build-ebpf --release`
+1. Build binary: `cargo build --release --target=x86_64-unknown-linux-musl`
+1. Run: `sudo ./target/x86_64-unknown-linux-musl/release/xdp-ip-counter --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
 
-#### Build eBPF
-
-```bash
-cargo xtask build-ebpf
-```
-
-To perform a release build you can use the `--release` flag.
-You may also change the target architecture with the `--target` flag
-
-#### Build Userspace
-
-```bash
-cargo build
-```
-
-#### Run
-
-```bash
-RUST_LOG=info cargo xtask run -- --iface=eth0 --ports=80,22 --window=60 --server-port=3031
-```
-
-#### Build Static Binary
-To build a static binary with musl, install the musl target and pass the `--target` parameter to `cargo build`:
-```bash
-cargo xtask build-ebpf --release
-rustup target add x86_64-unknown-linux-musl
-cargo build --release --target=x86_64-unknown-linux-musl
-```
+#### Debug Run
+Run steps 1-4 and then: `RUST_LOG=info cargo xtask run -- --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
 
 ## To Do
 - [x] IPv6 Support
