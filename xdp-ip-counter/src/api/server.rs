@@ -14,18 +14,21 @@ pub async fn serve(local_map: Arc<Mutex<LocalMap>>, server_port: u16, serve_ip_l
         .and(warp::any().map(move || lm1.clone()))
         .and_then(prometheus_metrics);
 
-    if serve_ip_list {
-        let ips_route = warp::get()
-            .and(warp::path("list"))
-            .and(warp::any().map(move || lm2.clone()))
-            .and_then(ip_data_list);
+    match serve_ip_list {
+        true => {
+            let ips_route = warp::get()
+                .and(warp::path("list"))
+                .and(warp::any().map(move || lm2.clone()))
+                .and_then(ip_data_list);
 
-        let routes = warp::get().and(metrics_route.or(ips_route));
-        warp::serve(routes).run(([0, 0, 0, 0], server_port)).await;
-    } else {
-        warp::serve(metrics_route)
-            .run(([0, 0, 0, 0], server_port))
-            .await;
+            let routes = warp::get().and(metrics_route.or(ips_route));
+            warp::serve(routes).run(([0, 0, 0, 0], server_port)).await;
+        }
+        false => {
+            warp::serve(metrics_route)
+                .run(([0, 0, 0, 0], server_port))
+                .await;
+        }
     }
 }
 
