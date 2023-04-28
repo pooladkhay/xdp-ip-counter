@@ -60,14 +60,14 @@ async fn ip_data_list(
         .expect("unable to accuire lock for local_map");
     let ip_list = local_map.get_ip_list();
 
-    Ok(warp::reply::with_header(
-        warp::reply::with_status(json(&ip_list), http::StatusCode::OK),
-        "Access-Control-Allow-Origin",
-        "http://localhost:3000",
-    ))
-
-    // Ok(warp::reply::with_status(
-    //     json(&ip_list),
-    //     http::StatusCode::OK,
+    // Ok(warp::reply::with_header(
+    //     warp::reply::with_status(json(&ip_list), http::StatusCode::OK),
+    //     "Access-Control-Allow-Origin",
+    //     "http://localhost:3000",
     // ))
+
+    Ok(warp::reply::with_status(
+        json(&ip_list),
+        http::StatusCode::OK,
+    ))
 }
