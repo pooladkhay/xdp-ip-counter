@@ -46,6 +46,8 @@ impl Args {
 
         if ports.len() == 1 && ports.first().unwrap() == &0 {
             None
+        } else if ports.len() > 100 {
+            panic!("you can only filter up to 100 ports");
         } else {
             Some(ports)
         }
