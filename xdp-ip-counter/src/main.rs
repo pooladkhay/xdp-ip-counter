@@ -2,11 +2,10 @@
 
 use clap::Parser;
 use log::info;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use tokio::signal;
 
 mod api;
-// mod api_data;
 mod args;
 mod ebpf;
 mod structs;
@@ -18,7 +17,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let args = args::Args::parse();
     let ebpf = ebpf::init(&args);
     let mut shared_maps = structs::SharedMaps::new(&ebpf);
-    let local_map = Arc::new(Mutex::new(structs::LocalMap::new()));
+    let local_map = Arc::new(RwLock::new(structs::LocalMap::new()));
 
     // Passing custom ports to ebpf side (if there are any)
     match args.parse_custom_ports() {

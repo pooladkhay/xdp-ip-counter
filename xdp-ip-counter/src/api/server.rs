@@ -1,11 +1,11 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, RwLock};
 use warp::reply::json;
 use warp::{http, Filter};
 
 use crate::api::prometheus;
 use crate::structs::LocalMap;
 
-pub async fn serve(local_map: Arc<Mutex<LocalMap>>, server_port: u16, serve_ip_list: bool) {
+pub async fn serve(local_map: Arc<RwLock<LocalMap>>, server_port: u16, serve_ip_list: bool) {
     let lm1 = local_map.clone();
     let lm2 = local_map.clone();
 
@@ -33,7 +33,7 @@ pub async fn serve(local_map: Arc<Mutex<LocalMap>>, server_port: u16, serve_ip_l
 }
 
 async fn prometheus_metrics(
-    local_map: Arc<Mutex<LocalMap>>,
+    local_map: Arc<RwLock<LocalMap>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     match prometheus::generate_mertics(local_map) {
         Ok(metrics_buffer) => Ok(warp::reply::with_status(
@@ -48,10 +48,10 @@ async fn prometheus_metrics(
 }
 
 async fn ip_data_list(
-    local_map: Arc<Mutex<LocalMap>>,
+    local_map: Arc<RwLock<LocalMap>>,
 ) -> Result<impl warp::Reply, warp::Rejection> {
     let local_map = local_map
-        .lock()
+        .read()
         .expect("unable to accuire lock for local_map");
     let ip_list = local_map.get_ip_list();
 

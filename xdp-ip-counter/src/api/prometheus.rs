@@ -1,12 +1,12 @@
 use std::{
     fmt::Write,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 
 use crate::structs::{L4Proto, LocalMap};
 
-pub fn generate_mertics(local_map: Arc<Mutex<LocalMap>>) -> Result<String, std::fmt::Error> {
-    let prom_metrics = local_map.lock().unwrap();
+pub fn generate_mertics(local_map: Arc<RwLock<LocalMap>>) -> Result<String, std::fmt::Error> {
+    let prom_metrics = local_map.read().unwrap();
     let prom_metrics = prom_metrics.get_prom_metrics();
     let mut metrics_buffer = String::new();
 

@@ -8,7 +8,7 @@ use aya_log::BpfLogger;
 use log::warn;
 use std::{
     collections::HashSet,
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
 };
 use tokio::time::{sleep, Duration};
 
@@ -53,7 +53,7 @@ pub fn init(args: &Args) -> Bpf {
 
 pub async fn collect(
     shared_maps: &mut SharedMaps,
-    local_map: Arc<Mutex<LocalMap>>,
+    local_map: Arc<RwLock<LocalMap>>,
     aggregate_window: u64,
 ) {
     // Program reads from ebpf maps (shared maps) to local_map's tmp area each SAMPLING_SECONDS seconds then clears ebpf maps.
@@ -74,7 +74,7 @@ pub async fn collect(
 
         for i in shared_maps.tcp_v4.iter() {
             let (ip, port) = i.unwrap();
-            if let Ok(ref mut map) = local_map.try_lock() {
+            if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv4, L4Proto::Tcp(port), ip)
             } else {
                 println!("failed")
@@ -83,7 +83,7 @@ pub async fn collect(
         }
         for i in shared_maps.udp_v4.iter() {
             let (ip, port) = i.unwrap();
-            if let Ok(ref mut map) = local_map.try_lock() {
+            if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv4, L4Proto::Udp(port), ip)
             } else {
                 println!("failed")
@@ -93,7 +93,7 @@ pub async fn collect(
 
         for i in shared_maps.tcp_v6.iter() {
             let (ip, port) = i.unwrap();
-            if let Ok(ref mut map) = local_map.try_lock() {
+            if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv6, L4Proto::Tcp(port), ip)
             } else {
                 println!("failed")
@@ -102,7 +102,7 @@ pub async fn collect(
         }
         for i in shared_maps.udp_v6.iter() {
             let (ip, port) = i.unwrap();
-            if let Ok(ref mut map) = local_map.try_lock() {
+            if let Ok(ref mut map) = local_map.write() {
                 map.add_tmp(L3Proto::Ipv6, L4Proto::Udp(port), ip)
             } else {
                 println!("failed")
@@ -126,7 +126,7 @@ pub async fn collect(
         if aggr_counter >= aggregate_window {
             aggr_counter = 0;
 
-            if let Ok(ref mut local_map) = local_map.try_lock() {
+            if let Ok(ref mut local_map) = local_map.write() {
                 local_map.aggr();
             }
         }
