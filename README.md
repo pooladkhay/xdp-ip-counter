@@ -58,9 +58,12 @@ Available at `:[server_port]/metrics`, This indicates that 8 unique IPv4 address
 
 Served at `:[server_port]/list`
 
-## Build and Run 
+## Build and Run
+#### Pre-compiled binary
+1. Download and extract the binary from releases
+1. Run with appropriate flags, e.g. `sudo ./xdp-ip-counter --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
 
-#### Static binary
+#### Build from source
 1. Install rust stable toolchain: `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
 1. Install rust nightly toolchain with the rust-src component: `rustup toolchain install nightly --component rust-src`
 1. Add x86_64-unknown-linux-musl target: `rustup target add x86_64-unknown-linux-musl`
@@ -69,8 +72,9 @@ Served at `:[server_port]/list`
 1. Build binary: `cargo build --release --target=x86_64-unknown-linux-musl`
 1. Run: `sudo ./target/x86_64-unknown-linux-musl/release/xdp-ip-counter --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
 
-#### Debug Run
-Run steps 1-4 and then: `RUST_LOG=info cargo xtask run -- --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
+#### Debug mode
+1. Run steps 1-4
+1. Run with appropriate flags, e.g. `RUST_LOG=info cargo xtask run -- --iface=eth0 --ports=80,22 --window=60 --server-port=3031 --serve-ip-list`
 
 ## To Do
 - [x] IPv6 Support
