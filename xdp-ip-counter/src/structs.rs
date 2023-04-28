@@ -147,8 +147,8 @@ impl LocalMap {
 
 /// SharedMaps respresents maps that are used to share data between kernel-space and user-space
 pub struct SharedMaps {
-    pub use_custom_ports: maps::Array<MapRefMut, u8>,
-    pub custom_ports: maps::HashMap<MapRefMut, u16, u8>,
+    use_custom_ports: maps::Array<MapRefMut, u8>,
+    custom_ports: maps::HashMap<MapRefMut, u16, u8>,
     pub tcp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
     pub udp_v4: maps::HashMap<MapRefMut, [u8; 4], u16>,
     pub tcp_v6: maps::HashMap<MapRefMut, [u16; 8], u16>,
@@ -223,5 +223,20 @@ impl SharedMaps {
                 Err(err) => info!("err removeing from UDP_IP_V6: {}", err),
             }
         }
+    }
+
+    pub fn add_custom_ports(&mut self, ports: Option<Vec<u16>>) -> Result<(), anyhow::Error> {
+        match ports {
+            Some(ports) => {
+                self.use_custom_ports.set(0, 1, 0)?;
+                for port in ports {
+                    self.custom_ports.insert(port, 1, 0)?;
+                }
+            }
+            None => {
+                self.use_custom_ports.set(0, 0, 0)?;
+            }
+        }
+        Ok(())
     }
 }

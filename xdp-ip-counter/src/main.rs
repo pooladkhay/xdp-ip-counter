@@ -20,17 +20,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let local_map = Arc::new(RwLock::new(structs::LocalMap::new()));
 
     // Passing custom ports to ebpf side (if there are any)
-    match args.parse_custom_ports() {
-        Some(ports) => {
-            shared_maps.use_custom_ports.set(0, 1, 0)?;
-            for port in ports {
-                shared_maps.custom_ports.insert(port, 1, 0)?;
-            }
-        }
-        None => {
-            shared_maps.use_custom_ports.set(0, 0, 0)?;
-        }
-    }
+    shared_maps.add_custom_ports(args.parse_custom_ports())?;
 
     tokio::spawn({
         let local_map = local_map.clone();
