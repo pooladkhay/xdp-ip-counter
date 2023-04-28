@@ -14,6 +14,10 @@ pub async fn serve(local_map: Arc<RwLock<LocalMap>>, server_port: u16, serve_ip_
         .and(warp::any().map(move || lm1.clone()))
         .and_then(prometheus_metrics);
 
+    println!(
+        "Prometheus metrics endpoint: http://0.0.0.0:{}/metrics",
+        server_port
+    );
     match serve_ip_list {
         true => {
             let ips_route = warp::get()
@@ -21,6 +25,7 @@ pub async fn serve(local_map: Arc<RwLock<LocalMap>>, server_port: u16, serve_ip_
                 .and(warp::any().map(move || lm2.clone()))
                 .and_then(ip_data_list);
 
+            println!("IP list endpoint: http://0.0.0.0:{}/list", server_port);
             let routes = warp::get().and(metrics_route.or(ips_route));
             warp::serve(routes).run(([0, 0, 0, 0], server_port)).await;
         }
