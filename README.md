@@ -82,3 +82,5 @@ Served at `:[server_port]/list`
 - [ ] Use Prometheus Client Library instead of a custom one
 - [ ] Add Support for more [IP Protocols](https://en.wikipedia.org/wiki/List_of_IP_protocol_numbers)
 - [ ] Cache counts for the duration of sampling interval
+- [ ] An option to filter based on destination address (e.g. ignore forwarding packets)
+
